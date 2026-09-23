@@ -48,3 +48,12 @@ reads or writes are always re-computed into `results/raw/` regardless.
 The unit test suite (`tests/`) constructs small in-memory dummy byte strings
 at runtime (deterministic logistic-map output). No large or binary fixture
 files are stored in the repository.
+
+## Data terms
+
+Files placed in this directory and everything generated under `results/` or
+`benchmark/` are **not** automatically covered by the repository's MIT code
+license. If you distribute a frozen dataset or archived experiment outputs,
+assign them an explicit data license (e.g., CC BY 4.0 or CC0) and state any
+access restrictions here. Third-party test materials remain under their own
+terms.

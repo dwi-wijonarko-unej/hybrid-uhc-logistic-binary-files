@@ -1,0 +1,10 @@
+# Optional pinned extras for scripts/benchmark_real_files.py (generation of
+# real-format DOCX/PDF/JPEG test files). The core pipeline, unit tests, and
+# reproduce_experiments.py never need these.
+#
+# Tested with CPython 3.14; both packages support Python 3.10+ (Pillow 12.x
+# ships cp310-cp314 wheels, python-docx is pure Python). Nothing in the
+# project auto-installs these; install them explicitly:
+#   pip install -r requirements.txt -r requirements-benchmark.txt
+python-docx==1.2.0
+Pillow==12.3.0

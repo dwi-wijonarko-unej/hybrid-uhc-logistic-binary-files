@@ -12,9 +12,13 @@ with the rule
 
 and stored as ``uint8``. The generator is stateful: successive calls to
 :meth:`LogisticMapKeystream.next_bytes` continue the same orbit, so the
-keystream is continuous across blocks and across an entire file. The orbit is
-never reset per block. Two instances constructed with identical parameters
-produce byte-identical sequences (covered by unit tests).
+keystream is continuous across all blocks of one file; the orbit is never
+reset per block. The cipher (see :mod:`hybrid_crypto.cipher`) creates a
+**fresh** generator — restarting from ``x0`` and re-running the warm-up —
+for every encrypt/decrypt operation, so each file operation begins with the
+same keystream prefix by design (a documented baseline limitation). Two
+instances constructed with identical parameters produce byte-identical
+sequences (covered by unit tests).
 """
 
 from __future__ import annotations

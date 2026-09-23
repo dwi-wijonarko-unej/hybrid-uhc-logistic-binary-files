@@ -12,5 +12,7 @@ dependencies:
   - pyyaml=6.0.1
   - pytest=8.1.1
   - pip
+  # Optional extras for scripts/benchmark_real_files.py are intentionally NOT
+  # included here; install them with: pip install -r requirements-benchmark.txt
   - pip:
       - -e .

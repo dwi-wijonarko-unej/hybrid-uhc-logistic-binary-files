@@ -3,9 +3,14 @@
 # Baseline reproduction environment: Python 3.10 (see environment.yml for the
 # matching conda env). The first block pins the exact versions used for the
 # 3.10 baseline. Newer interpreters (3.13/3.14) need newer binary wheels, so
-# the second block resolves compatible ranges there; numeric results of the
-# pipeline are identical across both branches because every computation is
-# deterministic (IEEE-754 double precision, integer modular arithmetic).
+# the second block resolves compatible ranges there.
+#
+# NOTE: encryption/decryption output, hashes, and byte-level statistics are
+# deterministic for identical inputs and configuration on both branches;
+# runtime and throughput figures remain hardware-dependent.
+#
+# Optional extras for the real-format benchmark (python-docx, Pillow) are
+# pinned separately in requirements-benchmark.txt.
 
 # Python 3.10 - 3.12 baseline pins
 numpy==1.26.4; python_version < "3.13"

@@ -14,6 +14,12 @@ Decryption reproduces the original file bit-for-bit. A reproduction pipeline
 measures runtime, byte statistics, and exact reconstruction for a set of test
 files and emits all raw measurements, tables, and figures.
 
+> "Any file" means the byte-level transform does not parse file-format
+> semantics. The evaluation evidence in this repository covers only the file
+> types and samples listed in the generated manifests; it does not establish
+> functional behavior for all possible formats, encrypted containers,
+> streaming inputs, or malformed files.
+
 > ## ⚠️ Security warning — read this first
 >
 > This is **not** modern authenticated encryption and must never be used to
@@ -24,10 +30,13 @@ files and emits all raw measurements, tables, and figures.
 > - No security claims are made against known-plaintext, chosen-plaintext,
 >   or any modern cryptanalytic attack. The Hill stage is linear and the
 >   logistic map is deterministic in IEEE-754 double precision.
-> - There is **no per-file nonce or diversification** in this baseline: the
->   same keystream and the same key matrix are reused for every file and
->   every run. This is a deliberate baseline experimental decision and a
->   documented security limitation — not a production design.
+> - There is **no per-file nonce or diversification** in this baseline.
+>   Every file operation starts from the same configured logistic initial
+>   condition (`logistic_x0`) after the same warm-up, so the **same
+>   keystream prefix is reused across files and runs** (the classic
+>   two-time-pad scenario), and the same key matrix encrypts every file.
+>   This is a deliberate baseline experimental decision and a documented
+>   security limitation — not a production design.
 > - There is **no integrity or authentication** (no MAC/tag); ciphertexts are
 >   malleable.
 > - Key material lives in a plaintext YAML file.
@@ -107,9 +116,14 @@ Both matrices are exported to `results/configuration/key_matrix.csv` and
   (Python `float`).
 - **1000 warm-up iterations** are discarded before the first byte.
 - Quantization: `k_i = floor((x_i · 1000) mod 256)`, stored as `uint8`.
-- The generator is **stateful and continuous**: the orbit is never reset per
-  block or per file; full blocks consume keystream bytes
-  `[0, n_full·256)` and the tail consumes the remaining bytes.
+- The generator is **stateful and continuous within one encryption or
+  decryption operation**: the orbit is not reset between blocks of the same
+  file; full blocks consume keystream bytes `[0, n_full·256)` and the tail
+  consumes the remaining bytes. For reproducibility, each file operation
+  (and each benchmark run) initializes a **fresh generator** from the
+  configured `logistic_x0` and performs the warm-up once. Consequently, the
+  same keystream prefix is reused across files and runs in this baseline
+  (documented as a security limitation below).
 - Identical parameters always produce byte-identical keystreams (unit-tested).
 
 ### Encryption
@@ -138,7 +152,8 @@ legacy compatibility; SHA-256 is authoritative).
 hybrid-uhc-logistic-binary-files/
 ├── README.md
 ├── LICENSE                        # MIT
-├── requirements.txt               # pinned dependencies
+├── requirements.txt               # pinned core dependencies
+├── requirements-benchmark.txt     # pinned optional extras (real-format benchmark)
 ├── environment.yml                # conda environment (Python 3.10)
 ├── pyproject.toml                 # packaging + pytest config
 ├── .gitignore
@@ -158,8 +173,9 @@ hybrid-uhc-logistic-binary-files/
 ├── scripts/
 │   ├── encrypt_file.py            # encrypt one file (config-driven)
 │   ├── decrypt_file.py            # decrypt one file (+ optional verification)
-│   ├── generate_synthetic_test_files.py
-│   ├── benchmark_real_files.py     # revised legacy benchmark on real DOCX/PDF/JPEG
+│   ├── generate_synthetic_test_files.py  # 12 deterministic placeholders
+│   ├── benchmark_real_files.py    # revised legacy benchmark on real DOCX/PDF/JPEG
+│   └── reproduce_experiments.py   # full experiment reproduction
 ├── tests/                         # pytest unit + roundtrip tests
 ├── data/
 │   ├── README.md                  # where real test files / manifests go
@@ -170,11 +186,16 @@ hybrid-uhc-logistic-binary-files/
     ├── raw/  ├── tables/  ├── figures/  └── logs/
 ```
 
-## Requirements and setup
-
 - Python **3.10** (also runs on newer CPython; the code avoids 3.11+-only syntax).
-- Dependencies: NumPy, SciPy, Matplotlib, PyYAML (runtime) and pytest (tests).
-  Nothing else.
+- Core runtime dependencies: NumPy, SciPy, Matplotlib, and PyYAML; pytest is
+  required for the test suite. The optional real-format benchmark
+  (`scripts/benchmark_real_files.py`) additionally requires `python-docx`
+  and `Pillow` for test-file **generation only** — nothing is ever
+  auto-installed; install the pinned extras separately:
+
+```bash
+pip install -r requirements.txt -r requirements-benchmark.txt
+```
 
 **venv (pip):**
 
@@ -187,8 +208,14 @@ pip install -r requirements.txt
 `requirements.txt` pins the Python 3.10 baseline (`numpy==1.26.4`,
 `scipy==1.11.4`, `matplotlib==3.8.4`, `PyYAML==6.0.1`, `pytest==8.1.1`) and
 contains environment markers that resolve compatible wheels on newer
-interpreters. All numeric results are identical across both branches because
-every computation is deterministic.
+interpreters. For the same input files, configuration, implementation
+revision, and an IEEE-754 binary64 execution path, ciphertexts, hashes, and
+byte-level statistics are deterministic. Runtime and throughput
+measurements are hardware-, OS-, and system-load-dependent and are **not**
+expected to be identical across machines. The implementation has been
+validated on CPython 3.14 (written to be 3.10-compatible); bit-identical
+logistic sequences on non-CPython interpreters or non-IEEE-754 platforms
+are not guaranteed.
 
 **conda:**
 
@@ -269,16 +296,20 @@ Cipher**). The revision is structural, not cosmetic:
 | Keystream re-ran the 1000-iteration warm-up on every call, with NaN fallbacks | stateful stream, warm-up once per operation, strict parameter validation |
 | MD5-only integrity | SHA-256 primary (byte-compare confirmed), MD5 secondary |
 
-It keeps the legacy workflow: generates real DOCX (python-docx), valid
-hand-built PDF, and real JPEG (Pillow) files padded to target size with
-`os.urandom`, then runs the benchmark loop and prints TABLE 1 (entropy /
+It keeps the legacy workflow: generates format-valid base documents (real
+DOCX via python-docx, hand-built PDF with coherent xref/trailer, real JPEG
+via Pillow) and pads each to its target size with filler inserted in
+format-legal locations (extra ZIP entries, extra PDF stream objects, JPEG
+COM segments), then runs the benchmark loop and prints TABLE 1 (entropy /
 adjacent-byte correlation), TABLE 2 (times and throughputs), TABLE 3
-(integrity), exports `benchmark/summary_results.csv`, and renders the
+(integrity), exports `benchmark/summary_results.csv` and
+`benchmark/source_manifest.csv` (SHA-256 per input file), and renders the
 plaintext/ciphertext histogram figure. The cryptographic core is imported
 from `hybrid_crypto`, so it runs exactly the algorithm covered by the unit
-tests (bounded-memory chunked processing for large files). `python-docx` and
-`Pillow` are auto-installed on first use and are needed **only** for test
-file generation, never for the crypto.
+tests (bounded-memory chunked processing for large files). `python-docx`
+and `Pillow` are needed **only** for test-file generation, never for the
+crypto; they are pinned in `requirements-benchmark.txt` and are **not**
+auto-installed.
 
 ```bash
 # full default set: DOCX/PDF/JPEG at 1, 10, 50, 100 MB (12 files)
@@ -287,15 +318,26 @@ python scripts/benchmark_real_files.py
 # quick run: one size class only (3 files)
 python scripts/benchmark_real_files.py --target-sizes-mb 1
 
-# reuse already generated files, or force regeneration
+# generate the deterministic dataset without benchmarking, or reuse existing files
+python scripts/benchmark_real_files.py --generate-only
 python scripts/benchmark_real_files.py --skip-generate
 python scripts/benchmark_real_files.py --regenerate
 ```
 
-Note: `os.urandom` padding makes the generated files realistic but not
-bit-reproducible across runs (the legacy program's deliberate choice); the
-cryptography itself is fully deterministic for a given input file and
-parameter set. Timings include file I/O, use 1 MB = 1,048,576 bytes, and are
+Reproducibility of the generated dataset:
+
+- **Default (`--padding-source seeded`, seed via `--seed`)**: the filler is a
+  fixed-seed SplitMix64 stream, so regenerating produces **byte-identical**
+  files for the same seed, sizes, and generator revision. This is the mode to
+  use when the benchmark dataset must be reproducible.
+- **`--padding-source urandom`**: matches the legacy program's padding, which
+  is *not* bit-reproducible — re-running the generator produces a different
+  dataset, so the generated files must be retained unchanged and audited via
+  `benchmark/source_manifest.csv` (SHA-256 per file). A `urandom` dataset is
+  not, by itself, a reproducibility source for reported numbers.
+
+The cryptography itself is deterministic for a given input file and parameter
+set. Timings include file I/O, use 1 MB = 1,048,576 bytes, and are
 hardware-dependent.
 
 ## Configuration parameters
@@ -385,25 +427,46 @@ referenced CSV artifact.
 1. **Not secure cryptography** — see the warning at the top. No resistance
    to known-plaintext/chosen-plaintext attacks is claimed or expected; the
    linear Hill stage leaks structure under such attacks.
-2. **Keystream reuse**: a single fixed keystream (from the config's
-   `logistic_r`/`logistic_x0`/warm-up) encrypts every file and every run —
-   the classic two-time-pad scenario. Per-file nonce diversification is
-   explicitly disabled in this baseline and flagged in
-   `key_material_report.json` (`per_file_nonce_or_diversification: false`).
-3. **Keystream prefix overlap**: the key matrix is derived from the first
-   135 bytes of the same logistic orbit that later serves as the file
-   keystream. This mirrors the studied scheme and is another documented
-   weakness of the baseline.
+2. **Keystream prefix reuse across files and runs**: every file operation
+   initializes a fresh logistic generator from the same configured
+   `logistic_r`/`logistic_x0`/warm-up, so every file and every run is
+   encrypted with the same keystream prefix — the classic two-time-pad
+   scenario. Per-file nonce diversification is explicitly disabled in this
+   baseline and flagged in `key_material_report.json`
+   (`per_file_nonce_or_diversification: false`).
+3. **Matrix/keystream overlap (independent generators, Model A)**: the
+   key-matrix generator and the file-keystream generator are initialized
+   independently with the same configured logistic parameters, so the first
+   135 quantized bytes used to construct the key matrix are **also reused
+   as the first 135 bytes of the file keystream** (pinned by a unit test).
+   This deterministic overlap is an intentional baseline property and a
+   documented security limitation.
 4. **Finite-precision logistic map**: IEEE-754 orbits can enter short
    cycles and the quantized bytes are not uniformly distributed.
 5. **Runtime results** are hardware-dependent (see *Benchmark protocol*).
-6. **Synthetic test files** are placeholders with format-accurate magic
-   bytes but SplitMix64 filler content. They reproduce the workflow, not the
-   article's numeric byte statistics. Supply the original files in
+6. **Synthetic test files** (from `generate_synthetic_test_files.py`) are
+   byte-level placeholders that carry recognizable format signatures (magic
+   bytes) but are **not guaranteed to be standards-conformant** DOCX, PDF,
+   or JPEG documents — applications may reject them. They reproduce the
+   byte-processing workflow only, not application-level format validity or
+   the article's numeric byte statistics. Supply the original files in
    `data/input/` to reproduce the article's numbers.
 7. Large inputs are slower than native ciphers because the keystream is a
    pure-Python orbit loop; this is part of what the experiment measures.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Code is released under the MIT License — see [LICENSE](LICENSE). Dataset
+files, generated experimental outputs (tables, figures, raw measurements),
+and any third-party test materials are **not** automatically covered by the
+code license; their terms are described in `data/README.md`. If you publish
+a frozen dataset or archived artifacts, assign them an explicit data license
+(e.g., CC BY 4.0 or CC0) separately.
+
+### Versioning and archival
+
+Revisions intended to support a manuscript should be frozen as an annotated
+git tag (e.g., `v0.1.0`) and archived in a DOI-minting repository (Zenodo or
+similar). Together, the tag, `results/configuration/used_config.yaml`, and
+`results/raw/file_manifest.csv` identify the exact code, parameters, and
+dataset behind any reported number.

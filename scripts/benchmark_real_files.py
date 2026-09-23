@@ -22,14 +22,23 @@ are real and structural:
 
 The cryptographic core is imported from the project library ``hybrid_crypto``
 (single tested implementation, bounded-memory chunked processing). Kept from
-the legacy program: realistic test-file generation (real DOCX via python-docx,
-hand-built valid PDF, real JPEG via Pillow — each padded to target size with
-``os.urandom``), the benchmark loop, the statistical tables, and the
-plaintext/ciphertext histogram figure.
+the legacy program: test-file generation (DOCX via python-docx, hand-built
+valid PDF, JPEG via Pillow — each a format-valid base document padded with
+filler inserted in format-legal locations), the benchmark loop, the
+statistical tables, and the plaintext/ciphertext histogram figure.
 
-Note: ``os.urandom`` padding makes the generated test files realistic but NOT
-bit-reproducible across runs; the cryptography itself is fully deterministic
-for a given input file and parameter set.
+``python-docx`` and ``Pillow`` are optional extras needed only for file
+generation; they are pinned in ``requirements-benchmark.txt`` and are NEVER
+auto-installed.
+
+Padding reproducibility:
+
+* ``--padding-source seeded`` (default): the filler is a fixed-seed
+  SplitMix64 stream, so regeneration is byte-identical for the same seed,
+  sizes, and generator revision;
+* ``--padding-source urandom``: legacy behaviour; NOT bit-reproducible, so a
+  generated dataset must be retained unchanged and audited via
+  ``benchmark/source_manifest.csv`` (SHA-256 per file).
 
 Not modern authenticated encryption; experimental proof of concept only.
 """
@@ -37,22 +46,26 @@ Not modern authenticated encryption; experimental proof of concept only.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import logging
 import os
-import subprocess
 import sys
 import zipfile
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_ROOT / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
+SCRIPTS_DIR = Path(__file__).resolve().parent
+for entry in (str(SRC_DIR), str(SCRIPTS_DIR)):
+    if entry not in sys.path:
+        sys.path.insert(0, entry)
 
+from generate_synthetic_test_files import SplitMix64  # noqa: E402
 from hybrid_crypto.cipher import HybridHillXORCipher  # noqa: E402
 from hybrid_crypto.config import CipherParameters  # noqa: E402
 from hybrid_crypto.io_utils import md5_file, sha256_file, write_csv  # noqa: E402
@@ -81,14 +94,20 @@ SIZE_NAMES = ["Small", "Medium", "Large", "Huge"]
 FILE_GROUPS = {"Doc": ".docx", "PDF": ".pdf", "Img": ".jpg"}
 TYPE_MAP = {".docx": "Document", ".pdf": "PDF", ".jpg": "Image", ".jpeg": "Image"}
 
+PADDING_SOURCES = ("seeded", "urandom")
+DEFAULT_SEED = 20260923
+
 
 @dataclass(frozen=True)
 class BenchmarkConfig:
     """All benchmark knobs (cipher parameters live in CipherParameters)."""
 
     target_sizes_mb: tuple[float, ...] = (1.0, 10.0, 50.0, 100.0)
+    padding_source: str = "seeded"
+    seed: int = DEFAULT_SEED
     root_dir: Path = PROJECT_ROOT / "benchmark"
     csv_name: str = "summary_results.csv"
+    source_manifest_name: str = "source_manifest.csv"
     figure_name: str = "Figure_histogram_detail.png"
 
     @property
@@ -108,6 +127,10 @@ class BenchmarkConfig:
         return self.root_dir / self.csv_name
 
     @property
+    def source_manifest_path(self) -> Path:
+        return self.root_dir / self.source_manifest_name
+
+    @property
     def figure_path(self) -> Path:
         return self.root_dir / self.figure_name
 
@@ -118,9 +141,19 @@ class BenchmarkConfig:
             for name, size_mb in zip(SIZE_NAMES, self.target_sizes_mb)
         ]
 
+    def make_filler(self, label: str) -> Callable[[int], bytes]:
+        """Return a deterministic (seeded) or legacy (urandom) filler."""
+        if self.padding_source == "urandom":
+            return os.urandom
+        if self.padding_source != "seeded":
+            raise ValueError(f"padding_source must be one of {PADDING_SOURCES}, got {self.padding_source!r}")
+        material = f"{self.seed}|{label}".encode("utf-8")
+        stream_seed = int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
+        return SplitMix64(stream_seed).next_bytes
+
 
 # ==============================================================================
-# 1. REAL DOCX FILE GENERATOR (python-docx + os.urandom padding)
+# 1. REAL DOCX FILE GENERATOR (python-docx + seeded/urandom padding)
 # ==============================================================================
 
 SAMPLE_PARAGRAPHS = [
@@ -137,11 +170,12 @@ def _import_python_docx():
         from docx import Document
         from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
         from docx.shared import Pt
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "python-docx", "-q"])
-        from docx import Document
-        from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-        from docx.shared import Pt
+    except ImportError as error:
+        raise SystemExit(
+            "python-docx is required for DOCX generation but is not installed "
+            f"({error}). Optional extras are pinned separately; install them with: "
+            "pip install -r requirements-benchmark.txt"
+        ) from error
     return Document, Pt, WD_PARAGRAPH_ALIGNMENT
 
 
@@ -164,9 +198,19 @@ def _create_docx_document(target_size_mb: float):
     return doc
 
 
-def generate_real_docx(filename: Path, target_size_mb: float) -> None:
+_DOCX_FIXED_TIME = (1980, 1, 1, 0, 0, 0)  # minimum MS-DOS zip time; kills mtime nondeterminism
+
+
+def generate_real_docx(filename: Path, target_size_mb: float, filler: Callable[[int], bytes]) -> None:
+    from datetime import datetime, timezone
+
     target_size_bytes = int(target_size_mb * MEGABYTE)
     document = _create_docx_document(target_size_mb)
+    # Pin the OOXML core timestamps; otherwise core.xml embeds the wall-clock
+    # time and the saved ZIP differs on every run.
+    fixed_moment = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    document.core_properties.created = fixed_moment
+    document.core_properties.modified = fixed_moment
     base_buffer = io.BytesIO()
     document.save(base_buffer)
     base_buffer.seek(0)
@@ -174,26 +218,31 @@ def generate_real_docx(filename: Path, target_size_mb: float) -> None:
     with zipfile.ZipFile(filename, "w", zipfile.ZIP_DEFLATED) as archive:
         with zipfile.ZipFile(base_buffer, "r") as source:
             for item in source.infolist():
-                archive.writestr(item, source.read(item.filename))
+                # Fresh ZipInfo with a fixed date_time: python-docx stamps
+                # entry mtimes with the current time, which would otherwise
+                # leak into the archive bytes.
+                normalized = zipfile.ZipInfo(item.filename, date_time=_DOCX_FIXED_TIME)
+                normalized.compress_type = item.compress_type
+                archive.writestr(normalized, source.read(item.filename))
         if padding_needed > 0:
             chunk_size = 10 * MEGABYTE
             chunk_number = 0
             total_written = 0
             while total_written < padding_needed:
                 size = min(padding_needed - total_written, chunk_size)
-                info = zipfile.ZipInfo(f"_padding/pad_{chunk_number:04d}.bin")
+                info = zipfile.ZipInfo(f"_padding/pad_{chunk_number:04d}.bin", date_time=_DOCX_FIXED_TIME)
                 info.compress_type = zipfile.ZIP_STORED
-                archive.writestr(info, os.urandom(size))
+                archive.writestr(info, filler(size))
                 total_written += size
                 chunk_number += 1
     logger.info("[ok] %s -> %s bytes", filename.name, f"{os.path.getsize(filename):,}")
 
 
 # ==============================================================================
-# 2. REAL PDF FILE GENERATOR (hand-built valid PDF + os.urandom padding)
+# 2. REAL PDF FILE GENERATOR (hand-built valid PDF + seeded/urandom padding)
 # ==============================================================================
 
-def generate_real_pdf(filename: Path, target_size_mb: float) -> None:
+def generate_real_pdf(filename: Path, target_size_mb: float, filler: Callable[[int], bytes]) -> None:
     target_bytes = int(target_size_mb * MEGABYTE)
     num_pages = min(100, max(5, int(target_size_mb * 1.5)))
     offsets: dict[int, int] = {}
@@ -232,7 +281,7 @@ def generate_real_pdf(filename: Path, target_size_mb: float) -> None:
                 size = min(padding_needed - total_written, 10 * MEGABYTE)
                 offsets[obj_num] = handle.tell()
                 handle.write(f"{obj_num} 0 obj\n<< /Length {size} >>\nstream\n".encode())
-                handle.write(os.urandom(size))
+                handle.write(filler(size))
                 handle.write(b"\nendstream\nendobj\n\n")
                 total_written += size
                 obj_num += 1
@@ -257,7 +306,7 @@ def generate_real_pdf(filename: Path, target_size_mb: float) -> None:
 
 
 # ==============================================================================
-# 3. REAL JPEG IMAGE GENERATOR (Pillow + os.urandom COM padding)
+# 3. REAL JPEG IMAGE GENERATOR (Pillow + seeded/urandom COM padding)
 # ==============================================================================
 
 _MAX_COM_DATA = 65533
@@ -266,9 +315,12 @@ _MAX_COM_DATA = 65533
 def _import_pillow():
     try:
         from PIL import Image, ImageDraw
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow", "-q"])
-        from PIL import Image, ImageDraw
+    except ImportError as error:
+        raise SystemExit(
+            "Pillow is required for JPEG generation but is not installed "
+            f"({error}). Optional extras are pinned separately; install them with: "
+            "pip install -r requirements-benchmark.txt"
+        ) from error
     return Image, ImageDraw
 
 
@@ -281,7 +333,9 @@ def _create_base_image():
     return image
 
 
-def generate_real_jpeg(filename: Path, target_size_mb: float, base_image) -> None:
+def generate_real_jpeg(
+    filename: Path, target_size_mb: float, base_image, filler: Callable[[int], bytes]
+) -> None:
     target_bytes = int(target_size_mb * MEGABYTE)
     jpeg_buffer = io.BytesIO()
     base_image.save(jpeg_buffer, format="JPEG", quality=85)
@@ -295,7 +349,7 @@ def generate_real_jpeg(filename: Path, target_size_mb: float, base_image) -> Non
             length = data_size + 2
             handle.write(b"\xff\xfe")
             handle.write(length.to_bytes(2, byteorder="big"))
-            handle.write(os.urandom(data_size))
+            handle.write(filler(data_size))
             remaining -= data_size
         handle.write(base_bytes[2:])
     logger.info("[ok] %s -> %s bytes", filename.name, f"{os.path.getsize(filename):,}")
@@ -318,18 +372,42 @@ def prepare_source_files(config: BenchmarkConfig, regenerate: bool, skip_generat
         if path.is_file() and not regenerate:
             logger.info("exists, keeping: %s", path.name)
             continue
+        filler = config.make_filler(f"{path.name}|{size_mb}")
         suffix = path.suffix.lower()
         if suffix == ".docx":
-            generate_real_docx(path, size_mb)
+            generate_real_docx(path, size_mb, filler)
         elif suffix == ".pdf":
-            generate_real_pdf(path, size_mb)
+            generate_real_pdf(path, size_mb, filler)
         elif suffix in (".jpg", ".jpeg"):
             if base_image is None:
                 base_image = _create_base_image()
-            generate_real_jpeg(path, size_mb, base_image)
+            generate_real_jpeg(path, size_mb, base_image, filler)
         else:  # pragma: no cover - guarded by FILE_GROUPS
             raise ValueError(f"unsupported test file type: {path}")
     return [path for path, _ in planned]
+
+
+_SOURCE_MANIFEST_FIELDS = [
+    "filename", "target_size_mb", "exact_size_bytes", "sha256", "padding_source", "seed",
+]
+
+
+def write_source_manifest(config: BenchmarkConfig, files: list[Path]) -> None:
+    """Record every benchmarked input file with its SHA-256 (audit trail)."""
+    targets = {path.name: size_mb for path, size_mb in config.planned_files()}
+    rows = [
+        {
+            "filename": path.name,
+            "target_size_mb": targets.get(path.name, ""),
+            "exact_size_bytes": os.path.getsize(path),
+            "sha256": sha256_file(path),
+            "padding_source": config.padding_source,
+            "seed": config.seed,
+        }
+        for path in files
+    ]
+    write_csv(config.source_manifest_path, _SOURCE_MANIFEST_FIELDS, rows)
+    logger.info("Source manifest written: %s (%d files)", config.source_manifest_path, len(rows))
 
 
 # ==============================================================================
@@ -377,6 +455,7 @@ def run_benchmark(config: BenchmarkConfig, cipher_params: CipherParameters) -> l
     config.decrypted_dir.mkdir(parents=True, exist_ok=True)
 
     files = prepare_source_files(config, regenerate=False, skip_generate=False)
+    write_source_manifest(config, files)
     results: list[dict[str, object]] = []
     for index, source in enumerate(files, start=1):
         size_bytes = os.path.getsize(source)
@@ -549,6 +628,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--target-sizes-mb", type=str, default="1,10,50,100",
                         help="Comma-separated target sizes in MB per file type (default: 1,10,50,100)")
+    parser.add_argument("--padding-source", choices=PADDING_SOURCES, default="seeded",
+                        help="Test-file filler: 'seeded' (default, byte-reproducible SplitMix64) "
+                             "or 'urandom' (legacy, NOT bit-reproducible)")
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
+                        help="Base seed for the seeded padding source (default: %(default)s)")
+    parser.add_argument("--generate-only", action="store_true",
+                        help="Generate the test files (as configured) and exit without benchmarking")
     parser.add_argument("--regenerate", action="store_true",
                         help="Regenerate source files even if they already exist")
     parser.add_argument("--skip-generate", action="store_true",
@@ -568,19 +654,30 @@ def main(argv: list[str] | None = None) -> int:
     if len(sizes) > len(SIZE_NAMES):
         raise SystemExit(f"at most {len(SIZE_NAMES)} sizes supported (names: {SIZE_NAMES})")
 
-    config = BenchmarkConfig(target_sizes_mb=sizes)
+    config = BenchmarkConfig(
+        target_sizes_mb=sizes, padding_source=args.padding_source, seed=args.seed
+    )
     cipher_params = DEFAULT_CIPHER_PARAMETERS
     if args.cipher_logistic_x0 != cipher_params.logistic_x0:
         cipher_params = replace(cipher_params, logistic_x0=args.cipher_logistic_x0)
     cipher_params.validate()
 
-    logger.info("Configuration: sizes=%s MB, output root=%s", list(sizes), config.root_dir)
+    logger.info(
+        "Configuration: sizes=%s MB, padding_source=%s, seed=%d, output root=%s",
+        list(sizes), config.padding_source, config.seed, config.root_dir,
+    )
     logger.info(
         "Cipher parameters: n=%d, block=%d, modulus=%d, r=%s, x0=%s, warmup=%d, parameter_id=%s",
         cipher_params.matrix_dimension, cipher_params.block_size, cipher_params.modulus,
         cipher_params.logistic_r, cipher_params.logistic_x0, cipher_params.warmup_iterations,
         cipher_params.parameter_id(),
     )
+
+    if args.generate_only:
+        prepare_source_files(config, regenerate=args.regenerate, skip_generate=False)
+        write_source_manifest(config, [path for path, _ in config.planned_files()])
+        logger.info("Generate-only mode: dataset ready under %s", config.source_dir)
+        return 0
 
     if args.regenerate or args.skip_generate or not any(path.is_file() for path, _ in config.planned_files()):
         prepare_source_files(config, regenerate=args.regenerate, skip_generate=args.skip_generate)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from hybrid_crypto.cipher import HybridHillXORCipher
@@ -86,6 +87,23 @@ def test_tail_only_path_is_pure_xor(cipher):
     ).next_bytes(100)
     xor = bytes(p ^ int(k) for p, k in zip(plaintext, keystream))
     assert cipher.encrypt(plaintext) == xor
+
+
+def test_keystream_prefix_reuses_matrix_sequence_bytes(cipher):
+    # Model A baseline property (see README limitations): the key-matrix
+    # generator and the file-keystream generator are initialized
+    # independently with the same parameters, so the first 135 keystream
+    # bytes equal the matrix derivation sequence. Pinned here deliberately:
+    # this overlap is an intentional, documented security limitation.
+    key = UnimodularKeyMaterial(DEFAULT_PARAMS)
+    keystream = LogisticMapKeystream(
+        DEFAULT_PARAMS.logistic_r, DEFAULT_PARAMS.logistic_x0, DEFAULT_PARAMS.warmup_iterations
+    ).next_bytes(135)
+    np.testing.assert_array_equal(keystream, key.sequence)
+    # And the cipher really XORs with those same prefix bytes:
+    tail_only = _plaintext(135)
+    expected = bytes(p ^ int(k) for p, k in zip(tail_only, key.sequence))
+    assert cipher.encrypt(tail_only) == expected
 
 
 def test_wrong_keystream_fails_to_reconstruct():

@@ -11,10 +11,12 @@ Encryption of a byte string ``P`` of length ``L`` (``block_size = n*n``):
    through the Hill matrix because its dimensions are incomplete; it is
    only XORed with the continuing keystream: ``C_tail = P_tail XOR K_tail``.
 
-The keystream is a single stateful logistic-map orbit per operation: it is
-never reset per block and runs continuously across the whole file, so full
-blocks consume keystream bytes ``[0, n_full*block_size)`` and the tail
-consumes the remaining bytes.
+A **fresh** keystream generator is initialized from the configured logistic
+parameters at the start of every encrypt/decrypt call (so every file
+operation and every run begins with the same keystream prefix — a
+documented baseline limitation); within one call the orbit is continuous
+and never reset per block, so full blocks consume keystream bytes
+``[0, n_full*block_size)`` and the tail consumes the remaining bytes.
 
 Decryption is symmetric: XOR with the identical keystream first, then apply
 the exact modular inverse ``M^-1`` (Gauss-Jordan over Z/256Z) to every full

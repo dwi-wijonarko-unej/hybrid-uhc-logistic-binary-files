@@ -112,3 +112,22 @@ def test_generated_matrix_is_invertible_for_every_row_seed():
     inverse = modular_matrix_inverse(matrix, 256)
     forward, backward = verify_modular_inverse(matrix, inverse, 256)
     assert forward and backward
+
+
+def test_inverse_property_over_100_parameter_configurations():
+    # Property test demanded by review: for 100 deterministic (r, x0)
+    # configurations the generated matrix must be exactly invertible modulo
+    # 256 in BOTH product directions, not just for the paper's parameters.
+    for index in range(100):
+        r = round(3.7 + 0.29 * ((index % 10) / 9.0), 6)      # 3.700 .. 3.990
+        x0 = round(0.01 + 0.979 * ((index // 10) / 9.0), 6)  # 0.010 .. 0.989
+        params = CipherParameters(
+            matrix_dimension=16, block_size=256, modulus=256,
+            logistic_r=r, logistic_x0=x0, warmup_iterations=1000,
+            quantization_rule="k_i = floor((x_i * 1000) mod 256), stored as uint8",
+            numeric_precision="IEEE-754 binary64 (Python float)",
+        )
+        key = UnimodularKeyMaterial(params)
+        forward, backward = verify_modular_inverse(key.matrix, key.inverse, 256)
+        assert forward, f"inverse failed forward for r={r}, x0={x0}"
+        assert backward, f"inverse failed backward for r={r}, x0={x0}"
