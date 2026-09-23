@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Revised legacy benchmark (large generated files, encrypted/decrypted copies)
+benchmark/
+
+# Experiment outputs are regenerated; keep only the directory skeleton
+results/**
+!results/**/
+!results/**/.gitkeep
+
+# Test inputs and manifests are local data, not part of the repository
+data/input/**
+!data/input/.gitkeep
+data/manifest/**
+!data/manifest/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

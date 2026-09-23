@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# Experiment configuration for:
+# "Experimental Evaluation of a Hybrid Unimodular Hill and Logistic Map XOR
+#  Scheme for Binary Files"
+#
+# Every parameter used by the pipeline is defined here. The source modules
+# contain no hidden defaults for experimental parameters: remove a key and
+# the loader raises a ConfigError instead of silently substituting a value.
+# ---------------------------------------------------------------------------
+
+experiment:
+  name: hybrid-uhc-logistic-xor-baseline
+  # Directory that holds the plaintext test files (relative paths resolve
+  # against the project root, i.e. the parent of config/).
+  input_dir: data/input
+  # Root directory for all generated artifacts.
+  output_dir: results
+  # If data/input contains no files, generate the deterministic synthetic
+  # placeholder files (scripts/generate_synthetic_test_files.py) first.
+  generate_synthetic_files_if_missing: true
+  # Input filename used for the byte-frequency histogram figure.
+  histogram_example_filename: synthetic_jpeg_256KB.bin
+
+cipher:
+  matrix_dimension: 16        # n for the n x n unimodular key matrix
+  block_size: 256             # bytes per Hill block; must equal matrix_dimension^2
+  modulus: 256                # modular arithmetic modulus (byte algebra)
+  logistic_r: 3.923           # logistic map control parameter
+  logistic_x0: 0.73911        # logistic map initial condition, 0 < x0 < 1
+  warmup_iterations: 1000     # map iterations discarded before the first byte
+  # Documentation-only fields, echoed verbatim into key_material_report.json:
+  quantization_rule: "k_i = floor((x_i * 1000) mod 256), stored as uint8"
+  numeric_precision: "IEEE-754 binary64 (Python float)"
+
+benchmark:
+  timing_warmup_runs: 1       # warm-up runs per file, excluded from statistics
+  timing_repetitions: 5       # measured runs recorded in raw_measurements.csv
+  include_file_io_in_timing: true
+  megabyte_bytes: 1048576     # fixed convention: 1 MB = 1024*1024 bytes
+
+synthetic_files:
+  output_dir: data/input
+  manifest_dir: data/manifest
+  seed: 20260923
+  file_types: ["docx", "pdf", "jpeg"]
+  sizes_bytes: [65536, 131072, 262144, 524288]
+  size_labels: ["64KB", "128KB", "256KB", "512KB"]

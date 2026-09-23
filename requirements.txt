@@ -1,0 +1,22 @@
+# Pinned dependencies for the hybrid UHC + logistic XOR experiment pipeline.
+#
+# Baseline reproduction environment: Python 3.10 (see environment.yml for the
+# matching conda env). The first block pins the exact versions used for the
+# 3.10 baseline. Newer interpreters (3.13/3.14) need newer binary wheels, so
+# the second block resolves compatible ranges there; numeric results of the
+# pipeline are identical across both branches because every computation is
+# deterministic (IEEE-754 double precision, integer modular arithmetic).
+
+# Python 3.10 - 3.12 baseline pins
+numpy==1.26.4; python_version < "3.13"
+scipy==1.11.4; python_version < "3.13"
+matplotlib==3.8.4; python_version < "3.13"
+PyYAML==6.0.1; python_version < "3.13"
+pytest==8.1.1; python_version < "3.13"
+
+# Python 3.13+ (binary wheels for the 3.10 pins are not published there)
+numpy>=2.3,<3; python_version >= "3.13"
+scipy>=1.15,<2; python_version >= "3.13"
+matplotlib>=3.10,<4; python_version >= "3.13"
+PyYAML>=6.0.2,<7; python_version >= "3.13"
+pytest>=8.3,<10; python_version >= "3.13"
