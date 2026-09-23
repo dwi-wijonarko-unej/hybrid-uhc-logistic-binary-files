@@ -1,0 +1,22 @@
+2026-09-23 10:13:53,700 | INFO    | hybrid_crypto.experiment | Experiment 'hybrid-uhc-logistic-xor-baseline' started (output: /home/dwijonarko/hybrid-uhc-logistic-binary-files/results)
+2026-09-23 10:13:53,702 | INFO    | hybrid_crypto.experiment | Key material ready: dimension=16 modulus=256 inverse_verified=True
+2026-09-23 10:13:53,707 | INFO    | hybrid_crypto.experiment | Manifest written: 12 input files
+2026-09-23 10:13:53,988 | INFO    | hybrid_crypto.experiment | F01 synthetic_docx_128KB.bin: size=131072 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:54,520 | INFO    | hybrid_crypto.experiment | F02 synthetic_docx_256KB.bin: size=262144 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:55,587 | INFO    | hybrid_crypto.experiment | F03 synthetic_docx_512KB.bin: size=524288 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:55,715 | INFO    | hybrid_crypto.experiment | F04 synthetic_docx_64KB.bin: size=65536 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:55,972 | INFO    | hybrid_crypto.experiment | F05 synthetic_jpeg_128KB.bin: size=131072 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:56,489 | INFO    | hybrid_crypto.experiment | F06 synthetic_jpeg_256KB.bin: size=262144 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:57,550 | INFO    | hybrid_crypto.experiment | F07 synthetic_jpeg_512KB.bin: size=524288 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:57,696 | INFO    | hybrid_crypto.experiment | F08 synthetic_jpeg_64KB.bin: size=65536 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:57,953 | INFO    | hybrid_crypto.experiment | F09 synthetic_pdf_128KB.bin: size=131072 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:58,476 | INFO    | hybrid_crypto.experiment | F10 synthetic_pdf_256KB.bin: size=262144 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:59,566 | INFO    | hybrid_crypto.experiment | F11 synthetic_pdf_512KB.bin: size=524288 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:13:59,706 | INFO    | hybrid_crypto.experiment | F12 synthetic_pdf_64KB.bin: size=65536 B runs_recorded=5 reconstruction_match=True
+2026-09-23 10:14:00,616 | INFO    | hybrid_crypto.reporting | Figure written: /home/dwijonarko/hybrid-uhc-logistic-binary-files/results/figures/fig_entropy_comparison.png
+2026-09-23 10:14:00,616 | INFO    | hybrid_crypto.reporting | Figure written: /home/dwijonarko/hybrid-uhc-logistic-binary-files/results/figures/fig_adjacent_byte_correlation.png
+2026-09-23 10:14:00,616 | INFO    | hybrid_crypto.reporting | Figure written: /home/dwijonarko/hybrid-uhc-logistic-binary-files/results/figures/fig_throughput_vs_file_size.png
+2026-09-23 10:14:00,616 | INFO    | hybrid_crypto.reporting | Figure written: /home/dwijonarko/hybrid-uhc-logistic-binary-files/results/figures/fig_ciphertext_expansion.png
+2026-09-23 10:14:00,616 | INFO    | hybrid_crypto.reporting | Figure written: /home/dwijonarko/hybrid-uhc-logistic-binary-files/results/figures/fig_byte_frequency_histogram.png
+2026-09-23 10:14:00,616 | INFO    | hybrid_crypto.experiment | Experiment complete; all outputs under /home/dwijonarko/hybrid-uhc-logistic-binary-files/results
+2026-09-23 10:14:00,617 | INFO    | reproduce_experiments | All experiment outputs are under /home/dwijonarko/hybrid-uhc-logistic-binary-files/results

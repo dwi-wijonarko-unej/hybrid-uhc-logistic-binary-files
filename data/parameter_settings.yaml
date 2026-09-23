@@ -1,0 +1,29 @@
+source: config/experiment_config.yaml (snapshot; the authoritative per-run copy is
+  results/configuration/used_config.yaml)
+cipher:
+  matrix_dimension: 16
+  block_size: 256
+  modulus: 256
+  logistic_r: 3.923
+  logistic_x0: 0.73911
+  warmup_iterations: 1000
+  quantization_rule: k_i = floor((x_i * 1000) mod 256), stored as uint8
+  numeric_precision: IEEE-754 binary64 (Python float)
+  parameter_id: 5afcee917983
+matrix_generation_algorithm: Identity init; strict upper triangle filled row-major
+  from a 135-byte logistic sequence (n(n-1)/2 + (n-1), n=16); lower part via determinant-preserving
+  row additions R_i <- R_i + a*R_0 mod 256; inverse by Gauss-Jordan over Z/256Z with
+  unit pivots and the extended Euclidean algorithm, verified in both product directions.
+benchmark_protocol:
+  real_format_benchmark: single encrypt+decrypt pass per file, timings include file
+    I/O
+  synthetic_experiment_repetitions:
+    timing_warmup_runs: 1
+    timing_repetitions: 5
+    include_file_io_in_timing: true
+    megabyte_bytes: 1048576
+test_dataset:
+  classes: DOCX/PDF/JPEG x 1/10/50/100 MB (12 files)
+  padding_source: seeded SplitMix64 (default; bit-exact regeneration)
+  generator: python scripts/benchmark_real_files.py --generate-only
+key_material_report: results/configuration/key_material_report.json

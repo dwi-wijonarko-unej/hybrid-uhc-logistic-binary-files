@@ -1,59 +1,61 @@
-# Data directory
+# Data directory — publication-grade data availability artifacts
 
-This directory holds the experiment inputs and their metadata. **No test files
-are committed to the repository.**
+This directory holds the auditable experiment record for the data
+availability statement. Everything here is generated deterministically and
+can be re-derived with the commands in [`artifact_map.md`](artifact_map.md).
 
-## `data/input/` — plaintext test files
+## Structure
 
-Place the binary files you want to evaluate here. The experiment pipeline
-(`scripts/reproduce_experiments.py`) picks up every regular file in this
-directory, in sorted filename order, and assigns identifiers `F01, F02, ...`.
+| Path | Content |
+|---|---|
+| `file_manifest.csv` | The 12-file test dataset (DOCX/PDF/JPEG × 1/10/50/100 MB): file id, type, nominal label, exact bytes, SHA-256 of plaintext/ciphertext/decrypted, reconstruction result, access status, and how each file is distributed. |
+| `checksums_sha256.txt` | `sha256sum`-compatible checksums for all 36 binaries (12 × source/encrypted/decrypted). Verify with `sha256sum -c data/checksums_sha256.txt` from the repository root (after regenerating any large files, see below). |
+| `parameter_settings.yaml` | Complete parameter snapshot: cipher parameters (r, x0, warm-up, quantization, block/modulus), matrix generation algorithm, benchmark protocol, dataset generator settings, parameter id. |
+| `raw_measurements.csv` | Per-file encryption/decryption time and throughput (paper Table 2; single pass per file, timings include file I/O; 1 MB = 1,048,576 B). |
+| `byte_statistics.csv` | Plaintext/ciphertext entropy and adjacent-byte correlation (paper Table 1). |
+| `reconstruction_checks.csv` | SHA-256 (primary) and MD5 (secondary) of original vs decrypted plus exact-match result (paper Table 3). |
+| `artifact_map.md` | Maps every paper table/figure to its artifact in this repository. |
+| `runtime_environment.txt` | Interpreter, package versions (`pip freeze`), OS and CPU used for the recorded runs. Timings are hardware-dependent. |
+| `analysis_outputs/real_format_benchmark/` | Benchmark outputs behind the paper tables: `summary_results.csv`, `source_manifest.csv`, histogram figure. |
+| `analysis_outputs/synthetic_experiment/` | Repetition-protocol experiment on the synthetic 12-file set (1 warm-up + 5 measured runs per file): raw per-run measurements, summary statistics, figures, key matrices, config snapshot, log. |
+| `input/` | Local drop-in directory for replacing the dataset with private/original files (never committed). |
 
-The original 12 files used in the article are **not** distributed with this
-repository. Two options:
+## Which binaries are committed — and why the rest is still fully available
 
-1. **Original dataset available.** Copy the 12 original files into
-   `data/input/`, optionally record their checksums in a manifest under
-   `data/manifest/` (see below), and run the reproduction script. This
-   reproduces the article's numerical results exactly, because the pipeline
-   is fully deterministic for a fixed file set and configuration.
+Git and GitHub are a poor fit for ~100 MB binaries, so only the **1 MB size
+class** (source + encrypted + decrypted, 9 files ≈ 9 MB) is committed under
+`benchmark/source`, `benchmark/encrypted`, and `benchmark/decrypted`.
 
-2. **Original dataset unavailable.** Generate the 12 deterministic synthetic
-   placeholder files instead:
+The remaining files are **bit-exactly regenerable** because the generator is
+deterministic (seeded SplitMix64 padding, normalized ZIP/PDF timestamps):
 
-   ```bash
-   python scripts/generate_synthetic_test_files.py --config config/experiment_config.yaml
-   ```
+```bash
+pip install -r requirements.txt -r requirements-benchmark.txt
+python scripts/benchmark_real_files.py --generate-only     # recreates all 12 sources
+python scripts/benchmark_real_files.py --skip-generate     # recreates enc + dec + tables
+sha256sum -c data/checksums_sha256.txt                     # must report OK for all 36
+```
 
-   The synthetic set consists of DOCX-like, PDF-like, and JPEG-like binary
-   placeholders (4 sizes x 3 types) built from a fixed-seed SplitMix64
-   stream. **These placeholders are not identical to the original files.**
-   They reproduce the *workflow* (tables, figures, checksums, timings) but
-   not the article's numeric values for byte statistics, since the byte
-   distributions differ. If `experiment.generate_synthetic_files_if_missing`
-   is `true`, the reproduction script generates them automatically when
-   `data/input/` is empty.
+Any regenerated file that does not match `checksums_sha256.txt` indicates a
+different generator revision or seed — do not mix such files with the
+published record.
 
-## `data/manifest/` — input metadata and checksums
+## Replacing the dataset with the original article files
 
-Generated input manifests (e.g. `synthetic_files_manifest.csv` with filename,
-target/exact size, and SHA-256 per synthetic file) are written here. When you
-supply your own test files, it is good practice to record
-`filename,exact_size_bytes,sha256` rows in a CSV here so the dataset can be
-audited later. The per-run authoritative checksums of everything the pipeline
-reads or writes are always re-computed into `results/raw/` regardless.
-
-## Small dummy binary for tests
-
-The unit test suite (`tests/`) constructs small in-memory dummy byte strings
-at runtime (deterministic logistic-map output). No large or binary fixture
-files are stored in the repository.
+If the original (non-synthetic) files used for the manuscript become
+shareable, drop them into `data/input/` and rerun
+`scripts/reproduce_experiments.py`; the pipeline re-emits every manifest,
+measurement, and figure for that dataset. Do not overwrite the hashes in
+this directory with values for files that are not actually distributed —
+record the real access conditions in `file_manifest.csv` (`access_status`
+column) instead.
 
 ## Data terms
 
-Files placed in this directory and everything generated under `results/` or
+Files under this directory and everything generated under `results/` or
 `benchmark/` are **not** automatically covered by the repository's MIT code
-license. If you distribute a frozen dataset or archived experiment outputs,
-assign them an explicit data license (e.g., CC BY 4.0 or CC0) and state any
-access restrictions here. Third-party test materials remain under their own
-terms.
+license. The committed dataset and analysis outputs in this release are
+distributed under **CC0 1.0** (no rights reserved) unless stated otherwise
+in `file_manifest.csv`; third-party materials remain under their own terms.
+If you redistribute a frozen copy, keep this notice and the checksum file
+together.

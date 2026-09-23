@@ -1,0 +1,13 @@
+file_id,filename,plaintext_entropy,ciphertext_entropy,plaintext_adjacent_byte_correlation,ciphertext_adjacent_byte_correlation
+docx_01,Doc_Small.docx,7.999736,7.999833,+0.013422,+0.002296
+docx_02,Doc_Medium.docx,7.999984,7.999982,-0.003722,+0.002779
+docx_03,Doc_Large.docx,7.999996,7.999996,+0.002391,+0.002649
+docx_04,Doc_Huge.docx,7.999998,7.999998,+0.000355,-0.013348
+jpeg_01,Img_Small.jpg,7.973183,7.999821,+0.037649,+0.017536
+jpeg_02,Img_Medium.jpg,7.999620,7.999982,-0.006174,-0.011216
+jpeg_03,Img_Large.jpg,7.999981,7.999997,-0.002212,+0.000317
+jpeg_04,Img_Huge.jpg,7.999994,7.999998,+0.006235,+0.011481
+pdf_01,PDF_Small.pdf,7.999800,7.999838,+0.012953,-0.002576
+pdf_02,PDF_Medium.pdf,7.999979,7.999981,+0.002374,+0.002776
+pdf_03,PDF_Large.pdf,7.999994,7.999996,+0.003373,+0.000483
+pdf_04,PDF_Huge.pdf,7.999997,7.999998,-0.002367,-0.007816

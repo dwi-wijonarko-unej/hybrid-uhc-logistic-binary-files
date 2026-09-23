@@ -1,0 +1,23 @@
+{
+  "inverse_matrix_csv_artifact": "key_matrix_inverse_mod256.csv",
+  "inverse_matrix_sha256": "b9ad796abd7f1a13671b54b5e70cbe14ab283f7e7841f6d55d65757c61a0d1c1",
+  "keystream_reuse_policy": "Baseline experimental implementation: a single keystream derived from the fixed configuration parameters (logistic_r, logistic_x0, warmup_iterations) is reused for every file and every run. Per-file nonce diversification is disabled; this is a documented security limitation, not a production design.",
+  "logistic_r": 3.923,
+  "logistic_x0": 0.73911,
+  "matrix_csv_artifact": "key_matrix.csv",
+  "matrix_dimension": 16,
+  "matrix_inverse_verification_result": {
+    "backward_product_is_identity": true,
+    "forward_product_is_identity": true,
+    "verified": true
+  },
+  "matrix_sha256": "45cc7022887fb6d62013aeb0ece6b2307c19e11f2e3a8a292b1b6e0f69b045fb",
+  "matrix_sha256_definition": "SHA-256 over the exact bytes of the referenced CSV artifact.",
+  "modulus": 256,
+  "numeric_precision_description": "IEEE-754 binary64 (Python float)",
+  "parameter_id": "5afcee917983",
+  "per_file_nonce_or_diversification": false,
+  "quantization_rule": "k_i = floor((x_i * 1000) mod 256), stored as uint8",
+  "sequence_length_for_matrix_generation": 135,
+  "warmup_iterations": 1000
+}
