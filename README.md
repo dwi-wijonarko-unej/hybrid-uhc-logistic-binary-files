@@ -4,7 +4,7 @@ Experimental evaluation framework for the article
 *"Experimental Evaluation of a Hybrid Unimodular Hill and Logistic Map XOR
 Scheme for Binary Files"*.
 
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22910816-blue)](https://doi.org/10.5281/zenodo.22910816)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22911269-blue)](https://doi.org/10.5281/zenodo.22911269)
 
 The project implements a file cipher that treats **any file as raw bytes** and
 combines two operations per 256-byte block:
@@ -466,11 +466,12 @@ referenced CSV artifact.
    key-matrix generator and the file-keystream generator are initialized
    independently with the same configured logistic parameters, so the first
    135 quantized bytes used to construct the key matrix are **also reused
-   as the first 135 bytes of the file keystream** (pinned by a unit test).
-   This deterministic overlap is an intentional baseline property and a
-   documented security limitation.
-4. **Finite-precision logistic map**: IEEE-754 orbits can enter short
-   cycles and the quantized bytes are not uniformly distributed.
+Release [`v1.0.0`](https://github.com/dwi-wijonarko-unej/hybrid-uhc-logistic-binary-files/releases/tag/v1.0.0)
+is archived on Zenodo: **https://doi.org/10.5281/zenodo.22911269** (previous
+`v0.1.0` remains as https://doi.org/10.5281/zenodo.22910816, also referenced
+in [CITATION.cff](CITATION.cff)). Together, the tag,
+`results/configuration/used_config.yaml`, and `results/raw/file_manifest.csv`
+identify the exact code, parameters, and dataset behind any reported number.
 5. **Runtime results** are hardware-dependent (see *Benchmark protocol*).
 6. **Synthetic test files** (from `generate_synthetic_test_files.py`) are
    byte-level placeholders that carry recognizable format signatures (magic
