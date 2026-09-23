@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software or the archived release in your work, please cite
+  the versioned Zenodo archive referenced below.
+title: >-
+  Hybrid Unimodular Hill and Logistic Map XOR Scheme for Binary Files
+  (experimental proof of concept)
+type: software
+authors:
+  - name: Dwi Wijonarko
+repository-code: >-
+  https://github.com/dwi-wijonarko-unej/hybrid-uhc-logistic-binary-files
+url: https://github.com/dwi-wijonarko-unej/hybrid-uhc-logistic-binary-files
+abstract: >-
+  Experimental evaluation framework for a hybrid file cipher that combines a
+  unimodular 16 x 16 Hill transform over Z/256Z on 256-byte blocks with a
+  byte-wise XOR against a logistic-map keystream. Includes exact modular
+  matrix inversion (Gauss-Jordan with unit pivots and the extended
+  Euclidean algorithm), a reproducible benchmark and statistics pipeline,
+  and a revised real-format DOCX/PDF/JPEG benchmark with deterministic
+  seeded test data. This is not modern authenticated encryption; it is a
+  proof of concept for evaluating reversibility, byte statistics, and
+  runtime only.
+keywords:
+  - hill cipher
+  - unimodular matrix
+  - logistic map
+  - keystream
+  - reproducibility
+  - proof of concept
+license: MIT
+version: 0.1.0
+date-released: "2026-09-23"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22910816
+    description: Archived versioned release (v0.1.0) on Zenodo

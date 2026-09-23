@@ -4,6 +4,8 @@ Experimental evaluation framework for the article
 *"Experimental Evaluation of a Hybrid Unimodular Hill and Logistic Map XOR
 Scheme for Binary Files"*.
 
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22910816-blue)](https://doi.org/10.5281/zenodo.22910816)
+
 The project implements a file cipher that treats **any file as raw bytes** and
 combines two operations per 256-byte block:
 
@@ -466,7 +468,9 @@ a frozen dataset or archived artifacts, assign them an explicit data license
 ### Versioning and archival
 
 Revisions intended to support a manuscript should be frozen as an annotated
-git tag (e.g., `v0.1.0`) and archived in a DOI-minting repository (Zenodo or
-similar). Together, the tag, `results/configuration/used_config.yaml`, and
-`results/raw/file_manifest.csv` identify the exact code, parameters, and
-dataset behind any reported number.
+git tag and archived in a DOI-minting repository (Zenodo or similar).
+Release [`v0.1.0`](https://github.com/dwi-wijonarko-unej/hybrid-uhc-logistic-binary-files/releases/tag/v0.1.0)
+is archived on Zenodo: **https://doi.org/10.5281/zenodo.22910816** (also
+referenced in [CITATION.cff](CITATION.cff)). Together, the tag,
+`results/configuration/used_config.yaml`, and `results/raw/file_manifest.csv`
+identify the exact code, parameters, and dataset behind any reported number.
